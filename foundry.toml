@@ -3,4 +3,12 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
+remappings = ["@izumi/contracts/=lib/iZiSwap-periphery/contracts/"]
+
+[rpc_endpoints]
+scroll = "${SCROLL_TESTNET_RPC}"
+bsc = "${BSC_TESTNET_RPC}"
+
+
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
