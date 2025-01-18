@@ -40,9 +40,9 @@ contract MultihopSwap {
     event SwapExactInputSuccessfull(address tokenA, address tokenB, uint128 amountIn, address recipient);
     event SwapExactOutputSuccessfull(address tokenA, address tokenB, uint256 amountOut, address recipient);
 
-    constructor(address swapRouter_, address swapQuoter, address swapPoolFactory_) {
+    constructor(address swapRouter_, address swapQuoter_, address swapPoolFactory_) {
         s_izumiRouter = IIzumiSwap(swapRouter_);
-        s_izumiQuoter = IIzumiQuoter(s_izumiQuoter);
+        s_izumiQuoter = IIzumiQuoter(swapQuoter_);
         s_izumiFactory = IiZiSwapFactory(swapPoolFactory_);
     }
 
@@ -72,8 +72,6 @@ contract MultihopSwap {
         // for the MAINNET are 500 (0.05%), 3000 (0.3%), and 10000 (1%), other than that tx will revert;
         // for the TESTNET are 400 (0.04%), 2000 (0.2%) and 10000 (1%)
         uint24 fee;
-        address swapRouter; // izumi swap router
-        address swapQuoter; // izumi swap quoter
         uint256 deadline;
     }
 
@@ -148,7 +146,6 @@ contract MultihopSwap {
     }
 
     function exactOutputMultihop(ExactOutputMultihopParams memory params) external ValidCaller returns(uint256 amtOut) {
-         s_izumiRouter = IIzumiSwap(params.swapRouter);
         //  supported fees for testnet is 400
         bytes memory path = abi.encodePacked(params.tokenOut, uint24(params.fee),  params.poolToken, uint24(params.fee), params.tokenIn);
 

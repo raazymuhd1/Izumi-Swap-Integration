@@ -39,11 +39,12 @@ contract MultihopTest is Test {
          bytes memory path = abi.encodePacked(WBNB, uint24(400), USDT, uint24(400), USDC);
 
         //  WBNB/USDT pool: 0x8F4B2C26849C45f5D895fb04ab36437E11146332
+        //  WBNB/USDT pool: 0xf5fE40418Ec2b11F69F0B2c66058a00A1E7C21E2
         //  USDT/USDC pool: 0xcE6Ffb9ea973B84A15a04D4ffb254151157F2709
 
         vm.startPrank(USER);
         IERC20(WBNB).approve(address(multihopSwap), test_amountIn);
-        (uint256 acquire, ) = IIzumiQuoter(izumiQuoterBsc).swapAmount(test_amountIn, path);
+        // (uint256 acquire, ) = IIzumiQuoter(izumiQuoterBsc).swapAmount(test_amountIn, path);
         MultihopSwap.ExactInputMultihopParams memory swapParams = MultihopSwap.ExactInputMultihopParams({
             tokenIn: WBNB,
             tokenOut: USDC,
@@ -53,9 +54,9 @@ contract MultihopTest is Test {
             fee: swapFeeTestnet,
             deadline: block.timestamp + 1 days
         });
-        address poolAddr = IiZiSwapFactory(izumiFactoryBsc).pool(USDT, WBNB, swapParams.fee);
+        address poolAddr = IiZiSwapFactory(izumiFactoryBsc).pool(USDC, WBNB, swapParams.fee);
         uint256 tokenABalInpool = IERC20(WBNB).balanceOf(poolAddr);
-        uint256 tokenBBalInpool =  IERC20(IZI).balanceOf(poolAddr);
+        uint256 tokenBBalInpool =  IERC20(USDC).balanceOf(poolAddr);
 
         uint256 amtOut = multihopSwap.exactInputMultihop(swapParams);
         console.log("pool addr ", poolAddr);
@@ -65,7 +66,6 @@ contract MultihopTest is Test {
 
         uint256 userBalanceOfTokenOut = IERC20(swapParams.tokenOut).balanceOf(USER);
         console.log("tokenOut balance of user", userBalanceOfTokenOut);
-        console.log("acquire amount", acquire);
         console.log("amount out", amtOut);
     }
 
@@ -90,8 +90,6 @@ contract MultihopTest is Test {
             maxAmountIn: cost,
             recipient: USER,
             fee: swapFeeTestnet,
-            swapRouter: izumiRouterAddrBsc,
-            swapQuoter: izumiQuoterBsc,
             deadline: block.timestamp
         });
           address poolAddr = IiZiSwapFactory(izumiFactoryBsc).pool(WBNB, USDT, swapParams.fee);
