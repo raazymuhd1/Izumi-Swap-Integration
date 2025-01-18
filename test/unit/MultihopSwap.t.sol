@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IIzumiSwap } from "../../src/interfaces/IIzumiSwap.sol";
 import { IIzumiQuoter } from "../../src/interfaces/IIzumiQuoter.sol";
 import { IiZiSwapFactory } from "@izumi/contracts/core/interfaces/IiZiSwapFactory.sol";
+import { IiZiSwapPool } from "@izumi/contracts/core/interfaces/IiZiSwapPool.sol";
 import { MultihopSwap } from "../../src/MultihopSwap.sol";
 
 contract MultihopTest is Test {
@@ -23,44 +24,49 @@ contract MultihopTest is Test {
     address IZI = 0x551197e6350936976DfFB66B2c3bb15DDB723250;
     address USDT = 0x6AECfe44225A50895e9EC7ca46377B9397D1Bb5b;
     address USDC = 0x876508837C162aCedcc5dd7721015E83cbb4e339; // usdc
-    uint128 test_amountIn = 0.005 ether;
+    uint128 test_amountIn = 0.009 ether;
 
-    uint24 swapFeeTestnet = 2000; // 400/2000/10000 are supported fees
+    uint24 swapFeeTestnet = 400; // 400/2000/10000 are supported fees
 
 
     function setUp() public {
-        multihopSwap = new MultihopSwap();
+        multihopSwap = new MultihopSwap(izumiRouterAddrBsc, izumiQuoterBsc, izumiFactoryBsc);
         // vm.prank(USER);
         // IERC20(WBNB).transfer(address(multihopSwap), test_amountIn);
     }
 
     function test_exactInputMultihop() public {
-         bytes memory path = abi.encodePacked(WBNB, uint24(400), USDC, uint24(400), USDT);
+         bytes memory path = abi.encodePacked(WBNB, uint24(400), USDT, uint24(400), USDC);
+
+        //  WBNB/USDT pool: 0x8F4B2C26849C45f5D895fb04ab36437E11146332
+        //  USDT/USDC pool: 0xcE6Ffb9ea973B84A15a04D4ffb254151157F2709
 
         vm.startPrank(USER);
-        // IERC20(WBNB).approve(address(multihopSwap), test_amountIn);
+        IERC20(WBNB).approve(address(multihopSwap), test_amountIn);
         (uint256 acquire, ) = IIzumiQuoter(izumiQuoterBsc).swapAmount(test_amountIn, path);
         MultihopSwap.ExactInputMultihopParams memory swapParams = MultihopSwap.ExactInputMultihopParams({
             tokenIn: WBNB,
-            tokenOut: IZI,
-            poolToken: USDC,
+            tokenOut: USDC,
+            poolToken: USDT,
             amountIn: test_amountIn,
-            minAmountOut: acquire,
             recipient: USER,
             fee: swapFeeTestnet,
-            swapRouter: izumiRouterAddrBsc,
-            swapQuoter: izumiQuoterBsc,
             deadline: block.timestamp + 1 days
         });
-        address poolAddr = IiZiSwapFactory(izumiFactoryBsc).pool(WBNB, USDT, swapParams.fee);
-        // uint256 amtOut = multihopSwap.exactInputMultihop(swapParams);
+        address poolAddr = IiZiSwapFactory(izumiFactoryBsc).pool(USDT, WBNB, swapParams.fee);
+        uint256 tokenABalInpool = IERC20(WBNB).balanceOf(poolAddr);
+        uint256 tokenBBalInpool =  IERC20(IZI).balanceOf(poolAddr);
+
+        uint256 amtOut = multihopSwap.exactInputMultihop(swapParams);
         console.log("pool addr ", poolAddr);
+        console.log("tokenA bal in pool", tokenABalInpool);
+        console.log("tokenB bal in pool", tokenBBalInpool);
         vm.stopPrank();
 
         uint256 userBalanceOfTokenOut = IERC20(swapParams.tokenOut).balanceOf(USER);
         console.log("tokenOut balance of user", userBalanceOfTokenOut);
         console.log("acquire amount", acquire);
-        // console.log("amount out", amtOut);
+        console.log("amount out", amtOut);
     }
 
     function test_checkBalance() public {
@@ -79,7 +85,7 @@ contract MultihopTest is Test {
         MultihopSwap.ExactOutputMultihopParams memory swapParams = MultihopSwap.ExactOutputMultihopParams({
             tokenIn: WBNB,
             tokenOut: USDC,
-            poolToken: USDT,
+            poolToken: IZI,
             amountOut: testAmountOut,
             maxAmountIn: cost,
             recipient: USER,

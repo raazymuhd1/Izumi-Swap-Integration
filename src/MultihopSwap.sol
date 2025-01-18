@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import { IIzumiSwap } from "./interfaces/IIzumiSwap.sol";
 import { IIzumiQuoter } from "./interfaces/IIzumiQuoter.sol";
+import { IiZiSwapFactory } from "@izumi/contracts/core/interfaces/IiZiSwapFactory.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -33,12 +34,17 @@ contract MultihopSwap {
 
     IIzumiSwap private s_izumiRouter;
     IIzumiQuoter private s_izumiQuoter;
+    IiZiSwapFactory private s_izumiFactory;
 
     // ---------------------------------------------- EVENTS ---------------------------------------------------------
     event SwapExactInputSuccessfull(address tokenA, address tokenB, uint128 amountIn, address recipient);
     event SwapExactOutputSuccessfull(address tokenA, address tokenB, uint256 amountOut, address recipient);
 
-  
+    constructor(address swapRouter_, address swapQuoter, address swapPoolFactory_) {
+        s_izumiRouter = IIzumiSwap(swapRouter_);
+        s_izumiQuoter = IIzumiQuoter(s_izumiQuoter);
+        s_izumiFactory = IiZiSwapFactory(swapPoolFactory_);
+    }
 
     // --------------------------------------------- STRUCTS ---------------------------------------------------------
     // all these params grouped together to avoid stack too deep error from EVM
@@ -47,14 +53,11 @@ contract MultihopSwap {
         address tokenOut;
         address poolToken;
         uint128 amountIn;
-        uint256 minAmountOut; // minAmount out of the pool
         address recipient;
         // supported fee rates:
         // for the MAINNET are 500 (0.05%), 3000 (0.3%), and 10000 (1%), other than that tx will revert;
         // for the TESTNET are 400 (0.04%), 2000 (0.2%) and 10000 (1%)
         uint24 fee;
-        address swapRouter;
-        address swapQuoter;
         uint256 deadline;
     }
 
@@ -74,6 +77,14 @@ contract MultihopSwap {
         uint256 deadline;
     }
 
+    struct PoolCheckParams {
+        address tokenOut; 
+        address tokenIn;
+        uint24 fee;
+        uint256 amountIn; 
+        uint256 minAmtOut;
+    }
+
     // --------------------------------------------MODIFIERS-------------------------------------------------------
     modifier ValidCaller() {
         // using IF instead of REQUIRE for gas opt, REQUIRE much expensive than IF
@@ -82,18 +93,20 @@ contract MultihopSwap {
     }
 
      // --------------------------------------------INTERNAL & PRIVATE FUNCTIONS -------------------------------------------------------
-    function initializeIzumi(address swapRouter_, address swapQuoter_, address poolFactory_) public returns(IIzumiSwap router, IIzumiQuoter quoter) {
-          s_izumiRouter = IIzumiSwap(swapRouter_);
-          s_izumiQuoter = IIzumiQuoter(swapQuoter_);
-
-          return (s_izumiRouter, s_izumiQuoter);
-    }
 
     /**
         @dev check if the pool exist or not, if pool not exist the swap will fail
      */
-     function poolExists(address tokenOut, address tokenIn, uint24 fee) internal view returns(address pool) {
+     function poolExists(PoolCheckParams memory poolParams) internal view returns(address pool) {
+         address poolAddr = s_izumiFactory.pool(poolParams.tokenOut, poolParams.tokenIn, poolParams.fee);
+         if(poolAddr == address(0)) revert("pool not exists");
+        
+        uint256 poolTokenABal = IERC20(poolParams.tokenIn).balanceOf(poolAddr);
+        uint256 poolTokenBBal = IERC20(poolParams.tokenOut).balanceOf(poolAddr);
 
+        if(poolTokenABal <= 0 || poolTokenBBal <= 0) revert("pool token balance is zero"); 
+        if(poolTokenABal <= poolParams.amountIn || poolTokenBBal <= poolParams.minAmtOut) revert("one of the pool tokens liquidity is less than the expected token amount");
+         
      }
 
     /**
@@ -103,9 +116,7 @@ contract MultihopSwap {
         @return amtOut - an amount user gets after swapping
      */
     function exactInputMultihop(ExactInputMultihopParams memory params) external ValidCaller returns(uint256 amtOut) {
-        // initialized a izumiSwap router
-        s_izumiRouter = IIzumiSwap(params.swapRouter);
-        s_izumiQuoter = IIzumiQuoter(params.swapQuoter);
+        // swap path
         bytes memory path = abi.encodePacked(params.tokenIn, uint24(params.fee), params.poolToken, uint24(params.fee), params.tokenOut);
 
         // address check
@@ -164,4 +175,16 @@ contract MultihopSwap {
         emit SwapExactOutputSuccessfull(params.tokenIn, params.tokenOut, outAmount, params.recipient);
         amtOut = outAmount;
     }
+
+    // needs to add modifier later
+    function updateIzumi(address newRouter, address newQuoter, address newPoolFactory) internal {
+
+        if(newRouter == address(0) || newQuoter == address(0) || newPoolFactory == address(0)) revert("one of the address cannot be zero");
+        s_izumiRouter = IIzumiSwap(newRouter);
+        s_izumiQuoter = IIzumiQuoter(newQuoter);
+        s_izumiFactory = IiZiSwapFactory(newPoolFactory);
+    }
+
+    // -------------------------------------------------------------- PUBLIC & EXTERNAL FUNCTIONS ----------------------------------------
+
 }
