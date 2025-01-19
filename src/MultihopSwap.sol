@@ -7,9 +7,8 @@ import { IiZiSwapFactory } from "@izumi/contracts/core/interfaces/IiZiSwapFactor
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
-    @dev making a multihop swap abstract contract that can be inherits from by other contracts later on.
+    @dev An abstract contract that can be inherits from by other contracts later on.
     @notice for slippage protection will need an off-chain sdk or on-chain price oracle (chainlink) to check the expected price of tokenIn
-    @notice current issues are both function still error
     @dev need an example contract to inherit from this abstract contract later
 
     REQUIREMENTS
@@ -51,7 +50,7 @@ contract MultihopSwap {
     struct ExactInputMultihopParams {
         address tokenIn;
         address tokenOut;
-        address poolToken;
+        address poolToken; // token in the middle of the path (WBNB, WETH, USDT, USDC, WBTC), not liq pool token
         uint128 amountIn;
         address recipient;
         // supported fee rates:
@@ -64,9 +63,8 @@ contract MultihopSwap {
     struct ExactOutputMultihopParams {
         address tokenIn;
         address tokenOut;
-        address poolToken;
+        address poolToken; // token in the middle of the path (WBNB, WETH, USDT, USDC, WBTC), not liq pool token
         uint128 amountOut;
-        uint256 maxAmountIn; // max amount of token user willing to pay for swapped with tokenOut
         address recipient;
         // supported fee rates:
         // for the MAINNET are 500 (0.05%), 3000 (0.3%), and 10000 (1%), other than that tx will revert;
@@ -75,7 +73,7 @@ contract MultihopSwap {
         uint256 deadline;
     }
 
-    struct PoolCheckParams {
+    struct PoolCheckParamsExactInput {
         address tokenOut; 
         address tokenIn;
         uint24 fee;
@@ -95,14 +93,14 @@ contract MultihopSwap {
     /**
         @dev check if the pool exist or not, if pool not exist the swap will fail
      */
-     function poolExists(PoolCheckParams memory poolParams) internal view returns(address pool) {
+     function poolExistsExactInput(PoolCheckParamsExactInput memory poolParams) internal view returns(address pool) {
          address poolAddr = s_izumiFactory.pool(poolParams.tokenOut, poolParams.tokenIn, poolParams.fee);
          if(poolAddr == address(0)) revert("pool not exists");
         
         uint256 poolTokenABal = IERC20(poolParams.tokenIn).balanceOf(poolAddr);
         uint256 poolTokenBBal = IERC20(poolParams.tokenOut).balanceOf(poolAddr);
 
-        if(poolTokenABal <= 0 || poolTokenBBal <= 0) revert("pool token balance is zero"); 
+        if(poolTokenABal <= 0 || poolTokenBBal <= 0) revert("not enough liquidity"); 
         if(poolTokenABal <= poolParams.amountIn || poolTokenBBal <= poolParams.minAmtOut) revert("one of the pool tokens liquidity is less than the expected token amount");
          
      }
@@ -110,11 +108,11 @@ contract MultihopSwap {
     /**
         @notice uses swapDesire/swapAmount function from izumiFinance to make a multihop , or we can use swapAmountSingleInternal function in Quoter contract
         @dev IMPORTANT! - needs to add a pool and poolLiquidity before calling swap, to make sure the pool exist and has enough liq
-        @param params - see ExactInputMultihopParams struct for params
+        @param params - see @ExactInputMultihopParams struct for params
         @return amtOut - an amount user gets after swapping
      */
     function exactInputMultihop(ExactInputMultihopParams memory params) external ValidCaller returns(uint256 amtOut) {
-        // swap path
+        // swap path in abi.encoded bytes
         bytes memory path = abi.encodePacked(params.tokenIn, uint24(params.fee), params.poolToken, uint24(params.fee), params.tokenOut);
 
         // address check
@@ -134,10 +132,10 @@ contract MultihopSwap {
             path: path,
             recipient: params.recipient,
             amount: params.amountIn,
-            minAcquired: acquire,
+            minAcquired: acquire, // minAmountOut (minimum amount of tokenOut user would gets from the pool)
             deadline: params.deadline
         });
-        // perform the swap
+        // perform the swap / calling exactInput swap
         (, uint256 outAmount) = s_izumiRouter.swapAmount(swapParams);
 
         if(outAmount <= 0) revert MultihopSwap_ExactInputSwapFailed(params.recipient, params.amountIn, outAmount);
@@ -145,41 +143,51 @@ contract MultihopSwap {
         amtOut = outAmount;
     }
 
+     /**
+       @dev call this function for exactOutput multi-hop swap, for params see @ExactOutputMultihopParams struct
+       @return amtOut - an amount user gets after swapped
+      */
     function exactOutputMultihop(ExactOutputMultihopParams memory params) external ValidCaller returns(uint256 amtOut) {
         //  supported fees for testnet is 400
+        // swap path for exactOutput in reverse order  
         bytes memory path = abi.encodePacked(params.tokenOut, uint24(params.fee),  params.poolToken, uint24(params.fee), params.tokenIn);
-
         // address check
         if(params.tokenIn == address(0) || params.tokenOut == address(0)) revert MultihopSwap_InvalidToken(params.tokenIn, params.tokenOut);
         if(params.recipient == address(0)) revert MultihopSwap_InvalidRecipient(params.recipient);
-        if(params.maxAmountIn <= 0) revert MultihopSwap_NotEnoughAmount(params.maxAmountIn);
+        if(params.amountOut <= 0) revert("amount out should be more than 0");
 
+        // quoting the swap, before actually calling swap
+        (uint256 cost, ) = s_izumiQuoter.swapDesire(params.amountOut, path);
           // the caller must approve this contract to pull the tokenIn amount
-        IERC20(params.tokenIn).transferFrom(msg.sender, address(this), params.maxAmountIn);
+        IERC20(params.tokenIn).transferFrom(msg.sender, address(this), cost);
         // approving izumiRouter tobe able pull the tokenIn amount from this contract
-        IERC20(params.tokenIn).approve(address(s_izumiRouter), params.maxAmountIn);
+        IERC20(params.tokenIn).approve(address(s_izumiRouter), cost);
 
         IIzumiSwap.SwapDesireParams memory swapParams = IIzumiSwap.SwapDesireParams({
             path: path,
             recipient: params.recipient,
-            desire: params.amountOut,
-            maxPayed: params.maxAmountIn,
+            desire: params.amountOut, // amountOut
+            maxPayed: cost, // cost = maxAmountIn
             deadline: params.deadline
         });
-
-          (, uint256 outAmount) = s_izumiRouter.swapDesire(swapParams);
-        if(outAmount <= 0) revert MultihopSwap_ExactInputSwapFailed(params.recipient, params.maxAmountIn, outAmount);
+        // calling exactOutput swap
+        (, uint256 outAmount) = s_izumiRouter.swapDesire(swapParams);
+        if(outAmount <= 0) revert MultihopSwap_ExactInputSwapFailed(params.recipient, cost, outAmount);
         emit SwapExactOutputSuccessfull(params.tokenIn, params.tokenOut, outAmount, params.recipient);
         amtOut = outAmount;
     }
 
-    // needs to add modifier later
-    function updateIzumi(address newRouter, address newQuoter, address newPoolFactory) internal {
-
+    // needs to add modifier later, only inherited contracts can call this function
+    /**
+        @dev inherited contract can update the izumi router, quoter, and factory addresses using this function
+     */
+    function updateIzumi(address newRouter, address newQuoter, address newPoolFactory) internal ValidCaller returns(address, address, address) {
         if(newRouter == address(0) || newQuoter == address(0) || newPoolFactory == address(0)) revert("one of the address cannot be zero");
         s_izumiRouter = IIzumiSwap(newRouter);
         s_izumiQuoter = IIzumiQuoter(newQuoter);
         s_izumiFactory = IiZiSwapFactory(newPoolFactory);
+
+        return (address(s_izumiRouter), address(s_izumiQuoter), address(s_izumiFactory));
     }
 
     // -------------------------------------------------------------- PUBLIC & EXTERNAL FUNCTIONS ----------------------------------------
