@@ -19,6 +19,7 @@ abstract contract MultihopSwap {
     error MultihopSwap_NotEnoughAmount(uint256 amount);
     error MultihopSwap_InvalidRecipient(address rec);
 
+    address private constant EMPTY_POOL = 0x0000000000000000000000000000000000000000;
     IIzumiSwap private s_izumiRouter;
     IIzumiQuoter private s_izumiQuoter;
     IiZiSwapFactory private s_izumiFactory;
@@ -95,7 +96,7 @@ abstract contract MultihopSwap {
      */
      function _poolExistsExactInput(PoolCheckParamsExactInput memory poolParams) internal view {
          address poolAddr = s_izumiFactory.pool(poolParams.poolToken, poolParams.tokenIn, poolParams.fee);
-         if(poolAddr == address(0)) revert("pool not exists");
+         if(poolAddr == EMPTY_POOL) revert("pool not exists");
          uint256 poolTokenBBal = IERC20(poolParams.poolToken).balanceOf(poolAddr);
          if(poolTokenBBal <= poolParams.minAmtOut) revert("pool tokens liquidity is less than the expected token amount");
      }
@@ -105,10 +106,9 @@ abstract contract MultihopSwap {
      */
      function _poolExistsExactOutput(PoolCheckParamsExactOutput memory poolParams) internal view {
          address poolAddr = s_izumiFactory.pool(poolParams.tokenIn, poolParams.poolToken, poolParams.fee);
-         if(poolAddr == address(0)) revert("pool not exists");
+         if(poolAddr == EMPTY_POOL) revert("pool not exists");
         uint256 poolTokenBBal = IERC20(poolParams.poolToken).balanceOf(poolAddr);
         if(poolTokenBBal <= poolParams.amountOut) revert("pool tokens liquidity is less than the expected token amount");
-         
      }
 
     /**
@@ -179,7 +179,7 @@ abstract contract MultihopSwap {
             maxPayed: cost, // cost = maxAmountIn
             deadline: params.deadline
         });
-        _poolExistsExactOutput(PoolCheckParamsExactOutput({ tokenIn: params.tokenIn, tokenOut: params.tokenOut, poolToken: params.poolToken, fee: params.fee amountOut: params.amountOut, maxAmtIn: cost }));
+        _poolExistsExactOutput(PoolCheckParamsExactOutput({ tokenIn: params.tokenIn, tokenOut: params.tokenOut, poolToken: params.poolToken, fee: params.fee, amountOut: params.amountOut, maxAmtIn: cost }));
         // calling exactOutput swap
         (uint256 maxAmountIn, uint256 outAmount) = s_izumiRouter.swapDesire(swapParams);
         if(outAmount <= 0) revert MultihopSwap_ExactInputSwapFailed(params.recipient, cost, outAmount);

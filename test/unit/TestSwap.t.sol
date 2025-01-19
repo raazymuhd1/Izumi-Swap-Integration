@@ -26,19 +26,23 @@ contract TestSwapTest is Test {
     address IZI = 0x551197e6350936976DfFB66B2c3bb15DDB723250;
     address USDT = 0x6AECfe44225A50895e9EC7ca46377B9397D1Bb5b;
     address USDC = 0x876508837C162aCedcc5dd7721015E83cbb4e339; // usdc
+    // params for scroll sepolia
+    address WETH = 0x5300000000000000000000000000000000000004;
+    address USDT_Scroll = 0x551197e6350936976DfFB66B2c3bb15DDB723250;
+    address USDC_Scroll = 0x690000EF01deCE82d837B5fAa2719AE47b156697;
 
     uint128 test_amountIn = 0.009 ether;
     uint24 swapFeeTestnet = 400; // 400/2000/10000 are supported fees
 
     function setUp() public {
-        testSwap = new TestContractSwap(izumiRouterAddrBsc, izumiQuoterBsc, izumiFactoryBsc);
+        testSwap = new TestContractSwap(izumiRouterAddrScroll, izumiQuoterScroll, izumiFactoryScroll);
     }
 
     function testExactInput() public {
         TestContractSwap.ExactInputParams memory swapParams = TestContractSwap.ExactInputParams({
-            tokenIn: WBNB,
-            tokenOut: USDC,
-            poolToken: USDT,
+            tokenIn: WETH,
+            tokenOut: USDT_Scroll,
+            poolToken: USDC_Scroll,
             amountIn: test_amountIn
         });
 
