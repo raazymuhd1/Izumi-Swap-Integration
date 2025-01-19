@@ -112,8 +112,8 @@ abstract contract MultihopSwap {
      }
 
     /**
-        @notice uses swapDesire/swapAmount function from izumiFinance to make a multihop , or we can use swapAmountSingleInternal function in Quoter contract
-        @dev IMPORTANT! - needs to add a pool and poolLiquidity before calling swap, to make sure the pool exist and has enough liq
+        @notice uses swapDesire/swapAmount function from izumiFinance to make a multihop
+        @dev IMPORTANT! - make sure the pool exist and has enough liq
         @param params - see @ExactInputMultihopParams struct for params
         @return amtOut - an amount user gets after swapping
      */
