@@ -64,7 +64,7 @@ contract TestContractSwap is MultihopSwap {
         IERC20(params.tokenIn).transferFrom(msg.sender, address(this), cost);
         IERC20(params.tokenIn).approve(_getContractAddress(), cost);
 
-        MultihopSwap.ExactInputMultihopParams memory swapParams = MultihopSwap.ExactOutputMultihopParams({
+        MultihopSwap.ExactOutputMultihopParams memory swapParams = MultihopSwap.ExactOutputMultihopParams({
             tokenIn: params.tokenIn,
             tokenOut: params.tokenOut,
             poolToken: params.poolToken,
