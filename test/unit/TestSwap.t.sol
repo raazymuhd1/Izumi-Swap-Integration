@@ -40,7 +40,7 @@ contract TestSwapTest is Test {
     }
 
     function testExactInput() public {
-        TestContractSwap.ExactInputParams memory swapParams = TestContractSwap.ExactInputParams({
+        TestContractSwap.ExactInput memory swapParams = TestContractSwap.ExactInput({
             tokenIn: WBNB,
             tokenOut: USDC,
             poolToken: USDT,
@@ -70,7 +70,7 @@ contract TestSwapTest is Test {
     function testExactOutput() public {
         uint128 amountOut = 0.005 ether;
 
-        TestContractSwap.ExactOutputParams memory swapParams = TestContractSwap.ExactOutputParams({
+        TestContractSwap.ExactOutput memory swapParams = TestContractSwap.ExactOutput({
             tokenIn: WBNB,
             tokenOut: USDT,
             poolToken: USDC,

@@ -19,3 +19,10 @@ exact-output-scroll:; forge test --mt test_exactOutputMultihop --fork-url $(SCRO
 exact-input-bob:; forge test --mt test_exactInputBob --fork-url $(BOB_MAINNET_RPC) -vvvv
 exact-output-bob:; forge test --mt test_exactOutputBob --fork-url $(BOB_MAINNET_RPC) -vvvv
 
+# forge verify-contract \
+# > --rpc-url https://rpc.gobob.xyz \
+# > --verifier blockscout \
+# > --verifier-url 'https://explorer-bob-mainnet-0.t.conduit.xyz/api/' \
+# > 0xa0Df0E51847D68F5a5d6CCb0e76E150012CA849D \
+# > src/TestSwap.sol:TestContractSwap
+
