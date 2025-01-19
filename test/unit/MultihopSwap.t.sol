@@ -78,7 +78,6 @@
 //         uint128 testAmountOut = 0.005 ether;
 
 //         vm.startPrank(USER);
-//         IERC20(WBNB).approve(address(multihopSwap), test_amountIn);
 
 //         MultihopSwap.ExactOutputMultihopParams memory swapParams = MultihopSwap.ExactOutputMultihopParams({
 //             tokenIn: WBNB,
@@ -89,6 +88,11 @@
 //             fee: swapFeeTestnet,
 //             deadline: block.timestamp
 //         });
+        // bytes memory path = abi.encodePacked(swapParams.tokenOut, swapFeeTestnet, swapParams.poolToken, swapFeeTestnet, swapParams.tokenIn);
+
+         // quoting the swap, before actually calling swap
+        // (uint256 cost, ) = IIzumiQuoter(izumiQuoterBsc).swapDesire(swapParams.amountOut, path);
+//         IERC20(WBNB).approve(address(multihopSwap), cost); // cost maxAmountIn
 
 //         address poolAddr = IiZiSwapFactory(izumiFactoryBsc).pool(swapParams.tokenIn, swapParams.tokenOut, swapParams.fee);
 //         console.log("pool addr ", poolAddr);

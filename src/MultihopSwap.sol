@@ -42,6 +42,7 @@ abstract contract MultihopSwap {
         address poolToken; // token in the middle of the path (WBNB, WETH, USDT, USDC, WBTC), not liq pool token
         uint128 amountIn;
         address recipient;
+        address caller; // pass in the inherited contract address
         // supported fee rates:
         // for the MAINNET are 500 (0.05%), 3000 (0.3%), and 10000 (1%), other than that tx will revert;
         // for the TESTNET are 400 (0.04%), 2000 (0.2%) and 10000 (1%)
@@ -55,6 +56,7 @@ abstract contract MultihopSwap {
         address poolToken; // token in the middle of the path (WBNB, WETH, USDT, USDC, WBTC), not liq pool token
         uint128 amountOut;
         address recipient;
+        address caller; // pass in the inherited contract address
         // supported fee rates:
         // for the MAINNET are 500 (0.05%), 3000 (0.3%), and 10000 (1%), other than that tx will revert;
         // for the TESTNET are 400 (0.04%), 2000 (0.2%) and 10000 (1%)
@@ -110,7 +112,7 @@ abstract contract MultihopSwap {
         if(params.amountIn <= 0) revert MultihopSwap_NotEnoughAmount(params.amountIn);
 
         // the caller must approve this contract to pull the tokenIn amount
-        IERC20(params.tokenIn).transferFrom(msg.sender, address(this), params.amountIn);
+        IERC20(params.tokenIn).transferFrom(params.caller, address(this), params.amountIn);
         // approving izumiRouter tobe able pull the tokenIn amount from this contract
         IERC20(params.tokenIn).approve(address(s_izumiRouter), params.amountIn);
 
@@ -147,8 +149,8 @@ abstract contract MultihopSwap {
 
         // quoting the swap, before actually calling swap
         (uint256 cost, ) = s_izumiQuoter.swapDesire(params.amountOut, path);
-          // the caller must approve this contract to pull the tokenIn amount
-        IERC20(params.tokenIn).transferFrom(msg.sender, address(this), cost);
+          // the caller must approve this contract to pull the tokenIn amount, (cost = maxAmountIn)
+        IERC20(params.tokenIn).transferFrom(params.caller, address(this), cost);
         // approving izumiRouter tobe able pull the tokenIn amount from this contract
         IERC20(params.tokenIn).approve(address(s_izumiRouter), cost);
 
