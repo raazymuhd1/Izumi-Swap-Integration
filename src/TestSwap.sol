@@ -1,35 +1,43 @@
-// // SPDX-License-Identifier: MIT
-// pragma solidity ^0.8.20;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
 
-// import { MultihopSwap } from "./MultihopSwap.sol";
+import { MultihopSwap } from "./MultihopSwap.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-// contract testContractSwap is MultihopSwap {
+contract TestContractSwap is MultihopSwap {
 
-//      struct ExactInputParams {
-//         address tokenIn;
-//         address tokenOut;
-//         address poolToken;
-//         uint128 amountIn;
-//         // supported fee rates:
-//         // for the MAINNET are 500 (0.05%), 3000 (0.3%), and 10000 (1%), other than that tx will revert;
-//         // for the TESTNET are 400 (0.04%), 2000 (0.2%) and 10000 (1%)
-//         address swapRouter;
-//         address swapQuoter;
-//         address swapPoolFactory;
-//         uint256 deadline;
-//     }
+    uint24 swapFee = 400; // supported fees on testnet 400/2000/10000
 
-//     function exactInput(ExactInputParams memory params) external {
-//         MultihopSwap.ExactInputMultihopParams memory swapParams = MultihopSwap.ExactInputMultihopParams({
-//             tokenIn: params.tokenIn,
-//             tokenOut: params.tokenOut,
-//             poolToken: params.poolToken,
-//             amountIn: params.amountIn,
-//             recipient: msg.sender,
-//             fee: 400,
-//             deadline: params.deadline
-//         });
+    constructor(address izumiRouter, address izumiQouter, address izumiPoolFactory) MultihopSwap(izumiRouter, izumiQouter, izumiPoolFactory) {
 
-//         // uint256 amtOut = exactInputMultihop(swapParams);
-//     }
-// }
+    }
+
+     struct ExactInputParams {
+        address tokenIn;
+        address tokenOut;
+        address poolToken; // middle path token (WETH/WBNB/WBTC/USDT/USDC), not liq pool token
+        uint128 amountIn;
+    }
+
+    /**
+     @dev testing calling exactInput from base contract
+     */
+    function exactInput(ExactInputParams memory params) external returns(uint256 outAmt) {
+
+        IERC20(params.tokenIn).transferFrom(msg.sender, address(this), params.amountIn);
+        IERC20(params.tokenIn).approve(_getContractAddress(), params.amountIn);
+
+        MultihopSwap.ExactInputMultihopParams memory swapParams = MultihopSwap.ExactInputMultihopParams({
+            tokenIn: params.tokenIn,
+            tokenOut: params.tokenOut,
+            poolToken: params.poolToken,
+            amountIn: params.amountIn,
+            recipient: msg.sender,
+            fee: swapFee,
+            deadline: block.timestamp
+        });
+
+        uint256 amtOut = exactInputMultihop(swapParams);
+        outAmt = amtOut;
+    }
+}

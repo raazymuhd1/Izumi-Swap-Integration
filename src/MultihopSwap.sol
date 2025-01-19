@@ -8,21 +8,10 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
     @dev An abstract contract that can be inherits from by other contracts later on.
-    @notice for slippage protection will need an off-chain sdk or on-chain price oracle (chainlink) to check the expected price of tokenIn
     @dev need an example contract to inherit from this abstract contract later
-
-    REQUIREMENTS
-    needed an abstract contract actually, for a swap from token A to token B using Izumi finance
-    budget around 300$ , just one function needed that should work where these params are passed 
-
-    1: Recipient 
-    2: Token A (amount In)
-    3: Token B (Minimun amount out)
-    4: Token Payer
-    5: Swap router
  */
 
-contract MultihopSwap {
+abstract contract MultihopSwap {
 
     error MultihopSwap_InvalidCaller(address caller);
     error MultihopSwap_ExactInputSwapFailed(address user, uint256 amountIn, uint256 amountOut);
@@ -111,7 +100,7 @@ contract MultihopSwap {
         @param params - see @ExactInputMultihopParams struct for params
         @return amtOut - an amount user gets after swapping
      */
-    function exactInputMultihop(ExactInputMultihopParams memory params) external ValidCaller returns(uint256 amtOut) {
+    function exactInputMultihop(ExactInputMultihopParams memory params) internal ValidCaller returns(uint256 amtOut) {
         // swap path in abi.encoded bytes
         bytes memory path = abi.encodePacked(params.tokenIn, uint24(params.fee), params.poolToken, uint24(params.fee), params.tokenOut);
 
@@ -147,7 +136,7 @@ contract MultihopSwap {
        @dev call this function for exactOutput multi-hop swap, for params see @ExactOutputMultihopParams struct
        @return amtOut - an amount user gets after swapped
       */
-    function exactOutputMultihop(ExactOutputMultihopParams memory params) external ValidCaller returns(uint256 amtOut) {
+    function exactOutputMultihop(ExactOutputMultihopParams memory params) internal ValidCaller returns(uint256 amtOut) {
         //  supported fees for testnet is 400
         // swap path for exactOutput in reverse order  
         bytes memory path = abi.encodePacked(params.tokenOut, uint24(params.fee),  params.poolToken, uint24(params.fee), params.tokenIn);
@@ -191,5 +180,9 @@ contract MultihopSwap {
     }
 
     // -------------------------------------------------------------- PUBLIC & EXTERNAL FUNCTIONS ----------------------------------------
+
+    function _getContractAddress() internal returns(address) {
+        return address(this);
+    }
 
 }
