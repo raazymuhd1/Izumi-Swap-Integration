@@ -35,14 +35,15 @@ contract TestSwapTest is Test {
     uint24 swapFeeTestnet = 400; // 400/2000/10000 are supported fees
 
     function setUp() public {
-        testSwap = new TestContractSwap(izumiRouterAddrScroll, izumiQuoterScroll, izumiFactoryScroll);
+        // deploying contract
+        testSwap = new TestContractSwap(izumiRouterAddrBsc, izumiQuoterBsc, izumiFactoryBsc);
     }
 
     function testExactInput() public {
         TestContractSwap.ExactInputParams memory swapParams = TestContractSwap.ExactInputParams({
-            tokenIn: WETH,
-            tokenOut: USDT_Scroll,
-            poolToken: USDC_Scroll,
+            tokenIn: WBNB,
+            tokenOut: USDC,
+            poolToken: USDT,
             amountIn: test_amountIn
         });
 
@@ -64,6 +65,7 @@ contract TestSwapTest is Test {
 
         console.log(outAmt);
     }
+
 
     function testExactOutput() public {
         uint128 amountOut = 0.005 ether;
