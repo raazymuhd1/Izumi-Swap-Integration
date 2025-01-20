@@ -2,14 +2,14 @@
 pragma solidity ^0.8.20;
 
 import { Test, console } from "forge-std/Test.sol";
-import { TestContractSwap } from "../../src/TestSwap.sol";
+import { MySwap } from "../../src/TestSwap.sol";
 import { IiZiSwapFactory } from "@izumi/contracts/core/interfaces/IiZiSwapFactory.sol";
 import { IIzumiQuoter } from "../../src/interfaces/IIzumiQuoter.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract TestSwapTest is Test {
 
-    TestContractSwap testSwap;
+    MySwap testSwap;
 
         // BSC TESTNET
     address izumiRouterAddrBsc = 0x4bD007912911f3Ee4b4555352b556B08601cE7Ce;
@@ -36,14 +36,13 @@ contract TestSwapTest is Test {
 
     function setUp() public {
         // deploying contract
-        testSwap = new TestContractSwap(izumiRouterAddrBsc, izumiQuoterBsc, izumiFactoryBsc);
+        testSwap = new MySwap(izumiRouterAddrBsc, izumiQuoterBsc, izumiFactoryBsc);
     }
 
     function testExactInput() public {
-        TestContractSwap.ExactInput memory swapParams = TestContractSwap.ExactInput({
+        MySwap.ExactInput memory swapParams = MySwap.ExactInput({
             tokenIn: WBNB,
             tokenOut: USDC,
-            poolToken: USDT,
             amountIn: test_amountIn
         });
 
@@ -70,13 +69,12 @@ contract TestSwapTest is Test {
     function testExactOutput() public {
         uint128 amountOut = 0.005 ether;
 
-        TestContractSwap.ExactOutput memory swapParams = TestContractSwap.ExactOutput({
+        MySwap.ExactOutput memory swapParams = MySwap.ExactOutput({
             tokenIn: WBNB,
             tokenOut: USDT,
-            poolToken: USDC,
             amountOut: amountOut
         });
-        bytes memory path = abi.encodePacked(swapParams.tokenOut, swapFeeTestnet, swapParams.poolToken, swapFeeTestnet, swapParams.tokenIn);
+        bytes memory path = abi.encodePacked(swapParams.tokenOut, swapFeeTestnet, swapParams.tokenIn);
 
         vm.startPrank(USER);
          // quoting the swap, before actually calling swap

@@ -5,9 +5,10 @@ import { BaseSwap } from "./BaseSwap.sol";
 import { IIzumiQuoter } from "./interfaces/IIzumiQuoter.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract TestContractSwap is BaseSwap {
+contract MySwap is BaseSwap {
 
-    uint24 swapFee = 400; // supported fees on testnet 400/2000/
+    uint24 private constant SWAPFEE_MAINNET = 3000; // supported fees on testnet 400/2000/
+    uint24 private constant SWAPFEE_TESTNET = 400; // supported fees on testnet 400/2000/
     IIzumiQuoter private izumiQuoter;
 
     constructor(address izumiRouter, address izumiQouter_, address izumiPoolFactory) BaseSwap(izumiRouter, izumiQouter_, izumiPoolFactory) {
@@ -17,14 +18,12 @@ contract TestContractSwap is BaseSwap {
      struct ExactInput {
         address tokenIn;
         address tokenOut;
-        address poolToken; // middle path token (WETH/WBNB/WBTC/USDT/USDC), not liq pool token
         uint128 amountIn;
     }
 
      struct ExactOutput {
         address tokenIn;
         address tokenOut;
-        address poolToken; // middle path token (WETH/WBNB/WBTC/USDT/USDC), not liq pool token
         uint128 amountOut;
     }
 
@@ -40,11 +39,10 @@ contract TestContractSwap is BaseSwap {
         BaseSwap.ExactInputParams memory swapParams = BaseSwap.ExactInputParams({
             tokenIn: params.tokenIn,
             tokenOut: params.tokenOut,
-            poolToken: params.poolToken,
             amountIn: params.amountIn,
             recipient: msg.sender,
             caller: address(this),
-            fee: swapFee,
+            fee: SWAPFEE_MAINNET,
             deadline: block.timestamp
         });
 
@@ -58,7 +56,7 @@ contract TestContractSwap is BaseSwap {
      */
     function exactOutput(ExactOutput memory params) external returns(uint256 outAmt) {
            // swap path for exactOutput in reverse order, this neeeded by quoter to pre-query the swap path to calculate the maxAmountIn user needs to pay  
-        bytes memory path = abi.encodePacked(params.tokenOut, uint24(swapFee),  params.poolToken, uint24(swapFee), params.tokenIn);
+        bytes memory path = abi.encodePacked(params.tokenOut, SWAPFEE_MAINNET, params.tokenIn);
         // cost = maxAmountIn (calculated by quoter based on user input amountOut)
         (uint256 cost, ) = izumiQuoter.swapDesire(params.amountOut, path);
         IERC20(params.tokenIn).transferFrom(msg.sender, address(this), cost);
@@ -67,11 +65,10 @@ contract TestContractSwap is BaseSwap {
         BaseSwap.ExactOutputParams memory swapParams = BaseSwap.ExactOutputParams({
             tokenIn: params.tokenIn,
             tokenOut: params.tokenOut,
-            poolToken: params.poolToken,
             amountOut: params.amountOut,
             recipient: msg.sender,
             caller: address(this),
-            fee: swapFee,
+            fee: SWAPFEE_MAINNET,
             deadline: block.timestamp
         });
 
